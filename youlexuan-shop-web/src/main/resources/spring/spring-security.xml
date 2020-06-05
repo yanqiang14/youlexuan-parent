@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns="http://www.springframework.org/schema/security"
+             xmlns:beans="http://www.springframework.org/schema/beans"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dubbo="http://dubbo.apache.org/schema/dubbo"
+             xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+						http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security.xsd http://dubbo.apache.org/schema/dubbo http://dubbo.apache.org/schema/dubbo/dubbo.xsd">
+
+    <!-- 配置 favicon.ico不进行安全拦截-->
+    <http pattern="/favicon.ico" security="none"/>
+
+    <!-- 以下页面不被拦截 -->
+    <http pattern="/shoplogin.html" security="none" />
+    <http pattern="/register.html" security="none" />
+    <!--匿名完成注册-->
+    <http pattern="/seller/add.do" security="none" />
+
+    <http pattern="/css/**" security="none"/>
+    <http pattern="/img/**" security="none"/>
+    <http pattern="/js/**" security="none"/>
+    <http pattern="/plugins/**" security="none"/>
+
+    <!-- 页面拦截规则 -->
+    <http use-expressions="false">
+        <intercept-url pattern="/**" access="ROLE_SELLER" />
+        <form-login login-page="/shoplogin.html"
+                    default-target-url="/admin/index.html"
+                    authentication-failure-url="/shoplogin.html"
+                    always-use-default-target="true"/>
+        <csrf disabled="true"/>
+        <!--index.html是一个框架页 frame嵌套了其他的页面-->
+        <headers>
+            <frame-options policy="SAMEORIGIN"/>
+        </headers>
+        <logout/><!--  /logout 完成注销 -->
+    </http>
+
+    <!-- 认证管理器 -->
+    <!--从数据库中读取账号、密码、角色-->
+    <authentication-manager>
+        <authentication-provider user-service-ref="userDetailService">
+            <password-encoder ref="bCryptPasswordEncoder"></password-encoder>
+            <!--<user-service>
+                <user name="admin" password="123456" authorities="ROLE_ADMIN"/>
+                <user name="abc" password="abc" authorities="ROLE_ADMIN"/>
+            </user-service>-->
+        </authentication-provider>
+    </authentication-manager>
+
+    <beans:bean id="userDetailService" class="com.offcn.shop.service.UserDetailServiceImpl">
+        <!--注意：一定要保证商家商品服务启动成功之后，再来启动shop-web-->
+        <beans:property name="sellerService" ref="sellerService" />
+    </beans:bean>
+
+
+    <!--声明加密组件-->
+    <beans:bean id="bCryptPasswordEncoder" class="org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder"></beans:bean>
+
+    <!--sellerService:远程调用的一个服务-->
+    <dubbo:application name="youlexuan-shop-web" />
+    <dubbo:registry address="zookeeper://192.168.188.133:2181"/>
+    <dubbo:reference id="sellerService" interface="com.offcn.sellergoods.service.SellerService" />
+
+</beans:beans>
